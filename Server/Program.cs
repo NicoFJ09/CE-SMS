@@ -10,8 +10,8 @@ namespace Server
     {
         static void Main(string[] args)
         {
-            Server s = new Server("localhost", 8080);
-            s.Start();
+            Server server = new Server("localhost", 12345);
+            server.Start();
         }
     }
 }

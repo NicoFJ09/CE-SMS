@@ -10,6 +10,7 @@ namespace Client
         IPHostEntry? host;
         IPAddress? ipAddr;
         IPEndPoint? endPoint;
+
         Socket? s_Client;
 
         public Client(string ip, int port)
@@ -32,11 +33,27 @@ namespace Client
         {
             try
             {
-                if (s_Client!= null && endPoint!= null)
+                if (s_Client != null && endPoint != null)
                 {
                     s_Client.Connect(endPoint);
                     Console.WriteLine("Connected to server");
-                    Send("Hello, server!");
+
+                    // Send name to server
+                    Console.Write("Enter your name: ");
+                    string? name = Console.ReadLine();
+                    Send(name!);
+
+                    while (true)
+                    {
+                        Console.Write("Enter message (or 'exit' to quit): ");
+                        string? message = Console.ReadLine();
+                        if (message!.ToLower() == "exit")
+                        {
+                            Send("exit");
+                            break;
+                        }
+                        Send(message);
+                    }
                 }
                 else
                 {
@@ -53,7 +70,7 @@ namespace Client
         {
             try
             {
-                if (s_Client!= null)
+                if (s_Client != null)
                 {
                     byte[] byteMsg = Encoding.ASCII.GetBytes(msg);
                     s_Client.Send(byteMsg);

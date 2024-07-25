@@ -10,10 +10,18 @@ namespace Client
     {
         static void Main(string[] args)
         {
-            Client client = new Client("localhost", 8080);
+            Client client = new Client("localhost", 12345);
             client.Start();
-            client.Send("Hello, server!");
-            Console.ReadLine();
+
+            while (true)
+            {
+                string message = Console.ReadLine();
+                if (message.ToLower() == "exit")
+                {
+                    break;
+                }
+                client.Send(message);
+            }
         }
     }
 }
