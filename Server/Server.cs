@@ -9,11 +9,11 @@ namespace Server
 {
     class Server
     {
-        IPHostEntry host;
-        IPAddress ipAddr;
-        IPEndPoint endPoint;
+        IPHostEntry? host;
+        IPAddress? ipAddr;
+        IPEndPoint? endPoint;
 
-        Socket s_Server;
+        Socket? s_Server;
         List<ClientInfo> clients;
 
         public Server(string ip, int port)
@@ -53,13 +53,12 @@ namespace Server
             string message;
 
             // Ask client for their name
-            clientInfo.Socket.Send(Encoding.ASCII.GetBytes("Enter your name: "));
             int bytesRead = clientInfo.Socket.Receive(buffer);
             clientInfo.Name = Encoding.ASCII.GetString(buffer, 0, bytesRead);
             Console.WriteLine("Client connected: " + clientInfo.Name);
 
             // Broadcast client list to all clients
-            BroadcastClientList();
+            BroadcastClientList(clientInfo);
 
             while (true)
             {
@@ -83,6 +82,9 @@ namespace Server
 
                     // Broadcast message to all other clients
                     Broadcast(message, clientInfo);
+
+                    // Update client list
+                    BroadcastClientList(clientInfo);
                 }
                 catch (SocketException ex)
                 {
@@ -109,24 +111,28 @@ namespace Server
 
             foreach (ClientInfo client in clients)
             {
-                if (client != sender)
+                if (client!= sender)
                 {
                     client.Socket.Send(buffer);
                 }
             }
         }
 
-        private void BroadcastClientList()
+        private void BroadcastClientList(ClientInfo clientInfo)
         {
-            string clientList = "Connected clients: ";
-            foreach (ClientInfo client in clients)
+            string clientList = "Online clients:\r\n";
+            for (int i = 0; i < clients.Count; i++)
             {
-                clientList += client.Name + ", ";
+                if (clients[i] == clientInfo)
+                {
+                    clientList += $"{i + 1}. {clients[i].Name} (you)\r\n";
+                }
+                else
+                {
+                    clientList += $"{i + 1}. {clients[i].Name}\r\n";
+                }
             }
-            clientList = clientList.TrimEnd(',', ' ');
-
             byte[] buffer = Encoding.ASCII.GetBytes(clientList);
-
             foreach (ClientInfo client in clients)
             {
                 client.Socket.Send(buffer);
@@ -137,7 +143,7 @@ namespace Server
     class ClientInfo
     {
         public Socket Socket { get; set; }
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         public ClientInfo(Socket socket)
         {

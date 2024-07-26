@@ -29,43 +29,50 @@ namespace Client
             }
         }
 
-        public void Start()
+    public void Start()
+    {
+        try
         {
-            try
+            if (s_Client!= null && endPoint!= null)
             {
-                if (s_Client != null && endPoint != null)
+                Console.Clear();
+                s_Client.Connect(endPoint);
+                Console.WriteLine("Connected to server");
+
+                // Send name to server
+                Console.Write("Enter your name: ");
+                string? name = Console.ReadLine();
+                Send(name!);
+
+                // Receive list of online clients
+                byte[] buffer = new byte[1024];
+                s_Client.Receive(buffer);
+                string clientList = Encoding.ASCII.GetString(buffer);
+                Console.WriteLine(clientList);
+
+                while (true)
                 {
-                    s_Client.Connect(endPoint);
-                    Console.WriteLine("Connected to server");
-
-                    // Send name to server
-                    Console.Write("Enter your name: ");
-                    string? name = Console.ReadLine();
-                    Send(name!);
-
-                    while (true)
+                    Console.Write("Enter message (or 'exit' to quit): ");
+                    string? message = Console.ReadLine();
+                    if (message!.ToLower() == "exit")
                     {
-                        Console.Write("Enter message (or 'exit' to quit): ");
-                        string? message = Console.ReadLine();
-                        if (message!.ToLower() == "exit")
-                        {
-                            Send("exit");
-                            break;
-                        }
-                        Send(message);
+                        Send("exit");
+                        Environment.Exit(0);
+                        break;
                     }
-                }
-                else
-                {
-                    Console.WriteLine("Error connecting to server");
+                    Send(message);
                 }
             }
-            catch (SocketException ex)
+            else
             {
-                Console.WriteLine("Error connecting to server: " + ex.Message);
+                Console.WriteLine("Error connecting to server");
             }
         }
-
+        catch (SocketException ex)
+        {
+            Console.WriteLine("Error connecting to server: " + ex.Message);
+        }
+    }
         public void Send(string msg)
         {
             try
@@ -74,7 +81,7 @@ namespace Client
                 {
                     byte[] byteMsg = Encoding.ASCII.GetBytes(msg);
                     s_Client.Send(byteMsg);
-                    Console.WriteLine("Message sent");
+                    Console.WriteLine("You: " + msg);
                 }
                 else
                 {
