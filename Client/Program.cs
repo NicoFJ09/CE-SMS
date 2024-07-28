@@ -15,12 +15,12 @@ namespace Client
 
             while (true)
             {
-                string message = Console.ReadLine();
-                if (message.ToLower() == "exit")
+                string? message = Console.ReadLine();
+                if ((message ?? string.Empty).ToLower() == "exit")
                 {
                     break;
                 }
-                client.Send(message);
+                client.Send(message ?? string.Empty); 
             }
         }
     }

@@ -24,7 +24,7 @@ namespace Server
 
             s_Server = new Socket(ipAddr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             s_Server.Bind(endPoint);
-            s_Server.Listen(10);
+            s_Server.Listen(20);
 
             clients = new List<ClientInfo>();
         }
@@ -35,7 +35,7 @@ namespace Server
 
             while (true)
             {
-                Socket s_Client = s_Server.Accept();
+                Socket s_Client = s_Server!.Accept();
                 Console.WriteLine("Client connected");
 
                 ClientInfo clientInfo = new ClientInfo(s_Client);
