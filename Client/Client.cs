@@ -57,10 +57,10 @@ namespace Client
                     clientThread = new Thread(ReceiveMessages);
                     clientThread.Start();
 
-
                     while (isRunning)
                     {
                         // Display the prompt at the bottom
+                        ClearCurrentConsoleLine();
                         Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
                         Console.Write("Enter message (or 'exit' to quit): ");
 
@@ -80,7 +80,7 @@ namespace Client
                             Send(message, false);
 
                             // Update message history
-                            AddToHistory($"{name}: {message}");
+                            AddToHistory($"{name} (you): {message}");
                         }
                     }
 
@@ -151,13 +151,13 @@ namespace Client
                             PrintMessageHistory();
 
                             // Print the prompt
+                            ClearCurrentConsoleLine();
                             Console.Write("Enter message (or 'exit' to quit): ");
                         }
                         else
                         {
                             // Print server message
-                            Console.SetCursorPosition(0, Console.WindowHeight - 2);
-                            Console.Write(new string(' ', Console.WindowWidth)); // Clear the line where the server message was
+                            ClearCurrentConsoleLine();
                             Console.SetCursorPosition(0, Console.WindowHeight - 2);
                             Console.WriteLine(message);
                             // Print message history
@@ -206,6 +206,14 @@ namespace Client
 
             // Ensure the prompt is always visible at the bottom
             Console.SetCursorPosition(0, Console.WindowHeight - 1);
+        }
+
+        private void ClearCurrentConsoleLine()
+        {
+            int currentLineCursor = Console.CursorTop;
+            Console.SetCursorPosition(0, currentLineCursor);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, currentLineCursor);
         }
     }
 }
