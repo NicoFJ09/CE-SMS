@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace Client
 {
@@ -19,6 +20,7 @@ namespace Client
         private string name = string.Empty; // Default initialization
         private const int historyLines = 20; // Number of lines to keep in history
         private LinkedList<string> messageHistory = new LinkedList<string>(); // Message history
+        private int clientListTopLine = 0; // Line where the client list starts
 
         public Client(string ip, int port)
         {
@@ -55,6 +57,7 @@ namespace Client
                     clientThread = new Thread(ReceiveMessages);
                     clientThread.Start();
 
+
                     while (isRunning)
                     {
                         // Display the prompt at the bottom
@@ -74,7 +77,7 @@ namespace Client
                                 Environment.Exit(0);
                                 break; // Exit the loop
                             }
-                            Send(message, true);
+                            Send(message, false);
 
                             // Update message history
                             AddToHistory($"{name}: {message}");
@@ -115,6 +118,7 @@ namespace Client
                 Console.WriteLine("Error sending message: " + ex.Message);
             }
         }
+
         private void ReceiveMessages()
         {
             try
@@ -135,32 +139,27 @@ namespace Client
                         if (message.StartsWith("Online clients:"))
                         {
                             // This is a client list update
-                            if (message != previousClientList)
-                            {
-                                previousClientList = message;
+                            previousClientList = message;
 
-                                // Clear the console and display the client list
-                                Console.Clear();
-                                Console.WriteLine(message);
+                            // Clear the entire console
+                            Console.Clear();
 
-                                // Print message history
-                                Console.WriteLine("\nMessage History:");
-                                foreach (var history in messageHistory)
-                                {
-                                    Console.WriteLine(history);
-                                }
+                            // Print the new client list
+                            Console.WriteLine(previousClientList);
 
-                                // Ensure the prompt is always visible at the bottom
-                                Console.SetCursorPosition(0, Console.WindowHeight - 1);
-                                Console.Write("Enter message (or 'exit' to quit): ");
-                            }
+                            // Print message history
+                            PrintMessageHistory();
+
+                            // Print the prompt
+                            Console.Write("Enter message (or 'exit' to quit): ");
                         }
                         else
                         {
                             // Print server message
-                            Console.SetCursorPosition(0, Console.CursorTop);
-                            Console.WriteLine($"Server: {message}");
-
+                            Console.SetCursorPosition(0, Console.WindowHeight - 2);
+                            Console.Write(new string(' ', Console.WindowWidth)); // Clear the line where the server message was
+                            Console.SetCursorPosition(0, Console.WindowHeight - 2);
+                            Console.WriteLine(message);
                             // Print message history
                             Console.SetCursorPosition(0, Console.WindowHeight - 1);
                             Console.Write("Enter message (or 'exit' to quit): ");
@@ -178,8 +177,6 @@ namespace Client
             }
         }
 
-
-
         private void AddToHistory(string message)
         {
             if (messageHistory.Count >= historyLines)
@@ -187,6 +184,28 @@ namespace Client
                 messageHistory.RemoveFirst(); // Remove the oldest message if at history limit
             }
             messageHistory.AddLast(message);
+
+            // Print message history
+            PrintMessageHistory();
+        }
+
+        private void PrintMessageHistory()
+        {
+            int linesToPrint = Math.Min(messageHistory.Count, historyLines);
+            int startLine = Console.WindowHeight - 1 - linesToPrint;
+
+            // Move the cursor to the correct line
+            Console.SetCursorPosition(0, startLine);
+            Console.Write(new string(' ', Console.WindowWidth * linesToPrint)); // Clear area for history
+            Console.SetCursorPosition(0, startLine);
+
+            foreach (var history in messageHistory)
+            {
+                Console.WriteLine(history);
+            }
+
+            // Ensure the prompt is always visible at the bottom
+            Console.SetCursorPosition(0, Console.WindowHeight - 1);
         }
     }
 }

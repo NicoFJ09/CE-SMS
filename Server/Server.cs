@@ -24,119 +24,123 @@ namespace Server
 
             s_Server = new Socket(ipAddr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             s_Server.Bind(endPoint);
-            s_Server.Listen(20);
+            s_Server.Listen(10);
 
             clients = new List<ClientInfo>();
         }
+    public void Start()
+    {
+        Console.WriteLine("Server started. Waiting for connections...");
 
-        public void Start()
+        while (true)
         {
-            Console.WriteLine("Server started. Waiting for connections...");
+            Socket s_Client = s_Server!.Accept();
+            Console.WriteLine("Client connected");
 
-            while (true)
-            {
-                Socket s_Client = s_Server!.Accept();
-                Console.WriteLine("Client connected");
+            ClientInfo clientInfo = new ClientInfo(s_Client);
+            clients.Add(clientInfo);
 
-                ClientInfo clientInfo = new ClientInfo(s_Client);
-                clients.Add(clientInfo);
-
-                // Create a new thread to handle the client
-                Thread clientThread = new Thread(() => HandleClient(clientInfo));
-                clientThread.Start();
-            }
+            // Create a new thread to handle the client
+            Thread clientThread = new Thread(() => HandleClient(clientInfo));
+            clientThread.Start();
         }
+    }
 
-        private void HandleClient(ClientInfo clientInfo)
+    private void HandleClient(ClientInfo clientInfo)
+    {
+        byte[] buffer = new byte[1024];
+
+        // Ask client for their name
+        int bytesRead = clientInfo.Socket.Receive(buffer);
+        clientInfo.Name = Encoding.ASCII.GetString(buffer, 0, bytesRead).Trim();
+        Console.WriteLine("Client connected: " + clientInfo.Name);
+
+        // Send the updated client list to all clients, including the newly connected one
+        BroadcastClientList();
+
+        while (true)
         {
-            byte[] buffer = new byte[1024];
-            string message;
-
-            // Ask client for their name
-            int bytesRead = clientInfo.Socket.Receive(buffer);
-            clientInfo.Name = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-            Console.WriteLine("Client connected: " + clientInfo.Name);
-
-            // Broadcast client list to all clients
-            BroadcastClientList(clientInfo);
-
-            while (true)
+            try
             {
-                try
+                bytesRead = clientInfo.Socket.Receive(buffer);
+                if (bytesRead == 0)
                 {
-                    bytesRead = clientInfo.Socket.Receive(buffer);
-                    if (bytesRead == 0)
-                    {
-                        Console.WriteLine("Client disconnected: " + clientInfo.Name);
-                        clients.Remove(clientInfo);
-                        break;
-                    }
-                    message = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                    if (message.ToLower() == "exit")
-                    {
-                        Console.WriteLine("Client " + clientInfo.Name + " left");
-                        clients.Remove(clientInfo);
-                        break;
-                    }
-                    Console.WriteLine("Received message from " + clientInfo.Name + ": " + message);
-
-                    // Broadcast message to all other clients
-                    Broadcast(message, clientInfo);
-
-                    // Update client list
-                    BroadcastClientList(clientInfo);
+                    Console.WriteLine("Client disconnected: " + clientInfo.Name);
+                    clients.Remove(clientInfo);
+                    // Notify remaining clients about the disconnection
+                    BroadcastClientList();
+                    break;
                 }
-                catch (SocketException ex)
-                {
-                    if (ex.ErrorCode == 10054)
-                    {
-                        Console.WriteLine("Client disconnected: " + clientInfo.Name);
-                        clients.Remove(clientInfo);
-                        break;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Error receiving data: " + ex.Message);
-                        break;
-                    }
-                }
+
+                // Just read and discard messages from clients
+                string message = Encoding.ASCII.GetString(buffer, 0, bytesRead).Trim();
+                Console.WriteLine($"{clientInfo.Name} sent a message: {message}");
             }
-
-            clientInfo.Socket.Close();
-        }
-
-        private void Broadcast(string message, ClientInfo sender)
-        {
-            byte[] buffer = Encoding.ASCII.GetBytes(sender.Name + ": " + message);
-
-            foreach (ClientInfo client in clients)
+            catch (SocketException ex)
             {
-                if (client!= sender)
+                if (ex.ErrorCode == 10054)
                 {
-                    client.Socket.Send(buffer);
-                }
-            }
-        }
-
-        private void BroadcastClientList(ClientInfo clientInfo)
-        {
-            string clientList = "Online clients:\r\n";
-            for (int i = 0; i < clients.Count; i++)
-            {
-                if (clients[i] == clientInfo)
-                {
-                    clientList += $"{i + 1}. {clients[i].Name} (you)\r\n";
+                    Console.WriteLine("Client disconnected: " + clientInfo.Name);
+                    clients.Remove(clientInfo);
+                    // Notify remaining clients about the disconnection
+                    BroadcastClientList();
+                    break;
                 }
                 else
                 {
-                    clientList += $"{i + 1}. {clients[i].Name}\r\n";
+                    Console.WriteLine("Error receiving data: " + ex.Message);
+                    break;
                 }
             }
+        }
+
+        clientInfo.Socket.Close();
+    }
+
+        private void SendClientList(string clientList, IEnumerable<ClientInfo> recipients)
+        {
             byte[] buffer = Encoding.ASCII.GetBytes(clientList);
-            foreach (ClientInfo client in clients)
+
+            foreach (ClientInfo client in recipients)
             {
-                client.Socket.Send(buffer);
+                try
+                {
+                    client.Socket.Send(buffer);
+                }
+                catch (SocketException ex)
+                {
+                    Console.WriteLine($"Error sending client list to {client.Name}: {ex.Message}");
+                }
             }
+        }
+
+        private void BroadcastClientList()
+        {
+            string clientList = GenerateClientList();
+            SendClientList(clientList, clients);
+        }
+
+        private void SendClientListToClient(ClientInfo clientInfo)
+        {
+            string clientList = GenerateClientList();
+            try
+            {
+                clientInfo.Socket.Send(Encoding.ASCII.GetBytes(clientList));
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine($"Error sending client list to {clientInfo.Name}: {ex.Message}");
+            }
+        }
+
+        private string GenerateClientList()
+        {
+            StringBuilder clientListBuilder = new StringBuilder("Online clients:\r\n");
+            for (int i = 0; i < clients.Count; i++)
+            {
+                clientListBuilder.AppendLine($"{i + 1}. {clients[i].Name}");
+            }
+            return clientListBuilder.ToString();
         }
     }
 
