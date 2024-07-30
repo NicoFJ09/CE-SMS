@@ -98,17 +98,20 @@ namespace Server
             clientInfo.Socket.Close();
         }
 
-        private void SendClientList(string clientList, ClientInfo recipient)
+        private void SendClientList(string clientList, IEnumerable<ClientInfo> recipients)
         {
             byte[] buffer = Encoding.ASCII.GetBytes(clientList);
 
-            try
+            foreach (ClientInfo client in recipients)
             {
-                recipient.Socket.Send(buffer);
-            }
-            catch (SocketException ex)
-            {
-                Console.WriteLine($"Error sending client list to {recipient.Name}: {ex.Message}");
+                try
+                {
+                    client.Socket.Send(buffer);
+                }
+                catch (SocketException ex)
+                {
+                    Console.WriteLine($"Error sending client list to {client.Name}: {ex.Message}");
+                }
             }
         }
 
@@ -117,7 +120,7 @@ namespace Server
             foreach (var client in clients)
             {
                 string clientList = GenerateClientList(client);
-                SendClientList(clientList, client);
+                SendClientList(clientList, new List<ClientInfo> { client });
             }
         }
 

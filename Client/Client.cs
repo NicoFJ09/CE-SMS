@@ -18,9 +18,8 @@ namespace Client
         private Thread? clientThread;
         private volatile bool isRunning = true; // Flag to control the thread execution
         private string name = string.Empty; // Default initialization
-        private const int historyLines = 20; // Number of lines to keep in history
+        private const int historyLines = 30; // Number of lines to keep in history
         private LinkedList<string> messageHistory = new LinkedList<string>(); // Message history
-        private int clientListTopLine = 0; // Line where the client list starts
 
         public Client(string ip, int port)
         {
@@ -144,6 +143,9 @@ namespace Client
                             // Clear the entire console
                             Console.Clear();
 
+                            //Space between top and client list
+                            Console.WriteLine(); 
+
                             // Print the new client list
                             Console.WriteLine(previousClientList);
 
@@ -165,6 +167,16 @@ namespace Client
                             Console.Write("Enter message (or 'exit' to quit): ");
                         }
                     }
+
+                    // Handle screen resize by redrawing
+                    if (Console.WindowHeight != previousWindowHeight || Console.WindowWidth != previousWindowWidth)
+                    {
+                        previousWindowHeight = Console.WindowHeight;
+                        previousWindowWidth = Console.WindowWidth;
+
+                        // Redraw the entire screen
+                        RedrawScreen();
+                    }
                 }
             }
             catch (Exception ex)
@@ -175,6 +187,24 @@ namespace Client
             {
                 s_Client?.Close();
             }
+        }
+
+        private int previousWindowHeight = Console.WindowHeight;
+        private int previousWindowWidth = Console.WindowWidth;
+
+        private void RedrawScreen()
+        {
+            Console.Clear();
+
+            Console.WriteLine(); //Space between top and client list
+
+            // Print the new client list
+            Console.WriteLine(previousClientList);
+            // Print message history
+            PrintMessageHistory();
+            // Print the prompt
+            ClearCurrentConsoleLine();
+            Console.Write("Enter message (or 'exit' to quit): ");
         }
 
         private void AddToHistory(string message)
@@ -192,7 +222,7 @@ namespace Client
         private void PrintMessageHistory()
         {
             int linesToPrint = Math.Min(messageHistory.Count, historyLines);
-            int startLine = Console.WindowHeight - 1 - linesToPrint;
+            int startLine = Math.Max(Console.WindowHeight - 1 - linesToPrint, 0);
 
             // Move the cursor to the correct line
             Console.SetCursorPosition(0, startLine);
