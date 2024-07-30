@@ -17,13 +17,13 @@ namespace Client
 
         Socket? s_Client;
 
-        private string selectedRecipient = "Self"; // Default recipient
         private string previousClientList = string.Empty;
         private Thread? clientThread;
-        private volatile bool isRunning = true; // Flag to control the thread execution
-        private string name = string.Empty; // Default initialization
-        private const int historyLines = 30; // Number of lines to keep in history
-        private LinkedList<string> messageHistory = new LinkedList<string>(); // Message history
+        private volatile bool isRunning = true;
+        private string name = string.Empty;
+        private LinkedList<string> messageHistory = new LinkedList<string>();
+        private int previousWindowWidth = Console.WindowWidth;
+        private int previousWindowHeight = Console.WindowHeight;
 
         public Client(string ip, int port)
         {
@@ -53,8 +53,8 @@ namespace Client
 
                     // Send name to server
                     Console.Write("Enter your name: ");
-                    name = Console.ReadLine() ?? "Unknown"; // Use a default name if none provided
-                    Send(name, false); // Indicate this is not a regular message
+                    name = Console.ReadLine() ?? "Unknown";
+                    Send(name, false);
 
                     // Start a thread to handle incoming messages and client list updates
                     clientThread = new Thread(ReceiveMessages);
@@ -62,10 +62,16 @@ namespace Client
 
                     while (isRunning)
                     {
-                        // Display the prompt at the bottom
-                        ClearCurrentConsoleLine();
-                        Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
-                        Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+                        // Check if console size has changed
+                        if (Console.WindowWidth != previousWindowWidth || Console.WindowHeight != previousWindowHeight)
+                        {
+                            previousWindowWidth = Console.WindowWidth;
+                            previousWindowHeight = Console.WindowHeight;
+                            RedrawScreen();
+                        }
+
+                        // Ensure the prompt is in the correct position
+                        UpdatePromptLine();
 
                         // Read user input
                         string? message = Console.ReadLine();
@@ -75,10 +81,10 @@ namespace Client
                             if (message.ToLower() == "/exit")
                             {
                                 Send("/exit", false);
-                                isRunning = false; // Signal the thread to stop
+                                isRunning = false;
                                 Console.Clear();
                                 Environment.Exit(0);
-                                break; // Exit the loop
+                                break;
                             }
                             else if (message.ToLower() == "/new")
                             {
@@ -95,41 +101,30 @@ namespace Client
                                         UseShellExecute = true,
                                         CreateNoWindow = false
                                     });
-                                    ClearCurrentConsoleLine();
-                                    Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
-                                    Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
-
+                                    UpdatePromptLine();
                                 }
                                 else
                                 {
                                     Console.WriteLine("Failed to determine the client directory path.");
                                 }
                             }
-
-
                             else if (message.StartsWith("/"))
                             {
                                 string numberStr = message.Substring(1);
                                 if (int.TryParse(numberStr, out int number))
                                 {
                                     // Send the command to the server
-                                    Send($"IS_NUM {number - 1}", false);
-                                    ClearCurrentConsoleLine();
-                                    Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
-                                    Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+                                    Send($"IS_NUM {number - 1}", true);
                                 }
                                 else
                                 {
                                     Send(message, false);
-                                    // Update message history
                                     AddToHistory($"{name} (you): {message}");
                                 }
                             }
-
                             else
                             {
                                 Send(message, false);
-                                // Update message history
                                 AddToHistory($"{name} (you): {message}");
                             }
                         }
@@ -191,43 +186,14 @@ namespace Client
                         {
                             // This is a client list update
                             previousClientList = message;
-
-                            // Clear the entire console
-                            Console.Clear();
-
-                            // Space between top and client list
-                            Console.WriteLine(); 
-
-                            // Print the new client list
-                            Console.WriteLine(previousClientList);
-
-                            // Print message history
-                            PrintMessageHistory();
-
-                            // Print the prompt
-                            ClearCurrentConsoleLine();
-                            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+                            RedrawScreen();
                         }
                         else
                         {
-                            // Print server message
-                            ClearCurrentConsoleLine();
-                            Console.SetCursorPosition(0, Console.WindowHeight - 2);
-                            Console.WriteLine(message);
-                            // Print message history
-                            Console.SetCursorPosition(0, Console.WindowHeight - 1);
-                            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+                            // Add the message to history and print it
+                            AddToHistory(message);
+                            RedrawScreen();
                         }
-                    }
-
-                    // Handle screen resize by redrawing
-                    if (Console.WindowHeight != previousWindowHeight || Console.WindowWidth != previousWindowWidth)
-                    {
-                        previousWindowHeight = Console.WindowHeight;
-                        previousWindowWidth = Console.WindowWidth;
-
-                        // Redraw the entire screen
-                        RedrawScreen();
                     }
                 }
             }
@@ -241,27 +207,29 @@ namespace Client
             }
         }
 
-        private int previousWindowHeight = Console.WindowHeight;
-        private int previousWindowWidth = Console.WindowWidth;
-
         private void RedrawScreen()
         {
             Console.Clear();
 
-            Console.WriteLine(); // Space between top and client list
-
-            // Print the new client list
+            // Print the client list at the top
+            Console.SetCursorPosition(0, 0);
             Console.WriteLine(previousClientList);
+
             // Print message history
             PrintMessageHistory();
+
             // Print the prompt
-            ClearCurrentConsoleLine();
-            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+            UpdatePromptLine();
         }
 
         private void AddToHistory(string message)
         {
-            if (messageHistory.Count >= historyLines)
+            // Determine available history lines based on current screen size
+            int clientListHeight = previousClientList.Split('\n').Length;
+            int availableLines = Console.WindowHeight - 2 - clientListHeight; // 1 for prompt, 1 for spacing
+
+            // Ensure we keep the history within the available space
+            while (messageHistory.Count >= availableLines)
             {
                 messageHistory.RemoveFirst(); // Remove the oldest message if at history limit
             }
@@ -273,29 +241,29 @@ namespace Client
 
         private void PrintMessageHistory()
         {
-            int linesToPrint = Math.Min(messageHistory.Count, historyLines);
-            int startLine = Math.Max(Console.WindowHeight - 1 - linesToPrint, 0);
+            // Determine available space for history
+            int clientListHeight = previousClientList.Split('\n').Length;
+            int availableLines = Math.Max(Console.WindowHeight - 2 - clientListHeight, 0); // 1 for prompt, 1 for spacing
 
-            // Move the cursor to the correct line
-            Console.SetCursorPosition(0, startLine);
-            Console.Write(new string(' ', Console.WindowWidth * linesToPrint)); // Clear area for history
-            Console.SetCursorPosition(0, startLine);
+            // Move the cursor to the correct line and clear the area for history
+            Console.SetCursorPosition(0, clientListHeight + 1); // 1 line for spacing
+            Console.Write(new string(' ', Console.WindowWidth * (availableLines - 1))); // Clear area for history
+            Console.SetCursorPosition(0, clientListHeight + 1); // Reset cursor position
 
             foreach (var history in messageHistory)
             {
                 Console.WriteLine(history);
             }
-
-            // Ensure the prompt is always visible at the bottom
-            Console.SetCursorPosition(0, Console.WindowHeight - 1);
         }
 
-        private void ClearCurrentConsoleLine()
+        private void UpdatePromptLine()
         {
-            int currentLineCursor = Console.CursorTop;
-            Console.SetCursorPosition(0, currentLineCursor);
-            Console.Write(new string(' ', Console.WindowWidth));
-            Console.SetCursorPosition(0, currentLineCursor);
+            // Move the cursor to the prompt line and clear it
+            Console.SetCursorPosition(0, Console.WindowHeight - 1);
+            Console.Write(new string(' ', Console.WindowWidth)); // Clear the line
+            Console.SetCursorPosition(0, Console.WindowHeight - 1); // Reset cursor position
+
+            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
         }
     }
 }

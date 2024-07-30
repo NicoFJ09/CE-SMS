@@ -76,6 +76,7 @@ namespace Server
                     // Just read and discard messages from clients
                     string message = Encoding.ASCII.GetString(buffer, 0, bytesRead).Trim();
                     Console.WriteLine($"{clientInfo.Name} sent a message: {message}");
+
                     if (message.StartsWith("IS_NUM"))
                     {
                         string[] parts = message.Split(' ');
@@ -84,12 +85,11 @@ namespace Server
                             int clientId = int.Parse(parts[1]);
                             if (clientId >= 0 && clientId < clients.Count)
                             {
-                                // Send a "hello" message to the client with the specified ID
-                                ClientInfo targetClient = clients[clientId];
-                                string helloMessage = "Hello from the server!";
-                                SendMessageToClient(targetClient, helloMessage);
-
-                                Console.WriteLine($"Sent hello message to client {clientId} ({targetClient.Name})");
+                                // Update the selected recipient for the client
+                                clientInfo.SelectedRecipientId = clientId;
+                                // Send updated client list to all clients
+                                BroadcastClientList();
+                                Console.WriteLine($"Updated selected recipient to client {clientId} ({clients[clientId].Name})");
                             }
                             else
                             {
@@ -97,7 +97,6 @@ namespace Server
                             }
                         }
                     }
-    
                 }
                 catch (SocketException ex)
                 {
@@ -131,7 +130,7 @@ namespace Server
             {
                 Console.WriteLine($"Error sending message to {client.Name}: {ex.Message}");
             }
-}
+        }
 
         private void SendClientList(string clientList, IEnumerable<ClientInfo> recipients)
         {
@@ -166,7 +165,7 @@ namespace Server
             {
                 if (clients[i] == currentClient)
                 {
-                    clientListBuilder.AppendLine($"{i + 1}. {clients[i].Name} (you)");
+                    clientListBuilder.AppendLine($"{i + 1}. {clients[i].Name} (you) - Currently texting: {(clients[i].SelectedRecipientId >= 0 && clients[i].SelectedRecipientId < clients.Count ? clients[clients[i].SelectedRecipientId].Name : "None")}");
                 }
                 else
                 {
@@ -181,6 +180,7 @@ namespace Server
     {
         public Socket Socket { get; set; }
         public string? Name { get; set; }
+        public int SelectedRecipientId { get; set; } = -1; // Default: no recipient selected
 
         public ClientInfo(Socket socket)
         {
@@ -188,4 +188,3 @@ namespace Server
         }
     }
 }
-
