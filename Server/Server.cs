@@ -76,6 +76,28 @@ namespace Server
                     // Just read and discard messages from clients
                     string message = Encoding.ASCII.GetString(buffer, 0, bytesRead).Trim();
                     Console.WriteLine($"{clientInfo.Name} sent a message: {message}");
+                    if (message.StartsWith("IS_NUM"))
+                    {
+                        string[] parts = message.Split(' ');
+                        if (parts.Length > 1)
+                        {
+                            int clientId = int.Parse(parts[1]);
+                            if (clientId >= 0 && clientId < clients.Count)
+                            {
+                                // Send a "hello" message to the client with the specified ID
+                                ClientInfo targetClient = clients[clientId];
+                                string helloMessage = "Hello from the server!";
+                                SendMessageToClient(targetClient, helloMessage);
+
+                                Console.WriteLine($"Sent hello message to client {clientId} ({targetClient.Name})");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid client ID");
+                            }
+                        }
+                    }
+    
                 }
                 catch (SocketException ex)
                 {
@@ -97,6 +119,19 @@ namespace Server
 
             clientInfo.Socket.Close();
         }
+
+        private void SendMessageToClient(ClientInfo client, string message)
+        {
+            try
+            {
+                byte[] buffer = Encoding.ASCII.GetBytes(message);
+                client.Socket.Send(buffer);
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine($"Error sending message to {client.Name}: {ex.Message}");
+            }
+}
 
         private void SendClientList(string clientList, IEnumerable<ClientInfo> recipients)
         {
@@ -153,3 +188,4 @@ namespace Server
         }
     }
 }
+

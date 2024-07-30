@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -14,6 +16,8 @@ namespace Client
         IPEndPoint? endPoint;
 
         Socket? s_Client;
+
+        private string selectedRecipient = "Self"; // Default recipient
         private string previousClientList = string.Empty;
         private Thread? clientThread;
         private volatile bool isRunning = true; // Flag to control the thread execution
@@ -61,25 +65,73 @@ namespace Client
                         // Display the prompt at the bottom
                         ClearCurrentConsoleLine();
                         Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
-                        Console.Write("Enter message (or 'exit' to quit): ");
+                        Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
 
                         // Read user input
                         string? message = Console.ReadLine();
 
                         if (message != null)
                         {
-                            if (message.ToLower() == "exit")
+                            if (message.ToLower() == "/exit")
                             {
-                                Send("exit", false);
+                                Send("/exit", false);
                                 isRunning = false; // Signal the thread to stop
                                 Console.Clear();
                                 Environment.Exit(0);
                                 break; // Exit the loop
                             }
-                            Send(message, false);
+                            else if (message.ToLower() == "/new")
+                            {
+                                string currentPath = Directory.GetCurrentDirectory();
+                                string clientPath = Path.Combine(Directory.GetParent(currentPath)?.FullName ?? string.Empty, "Client");
 
-                            // Update message history
-                            AddToHistory($"{name} (you): {message}");
+                                if (clientPath != null)
+                                {
+                                    Process.Start(new ProcessStartInfo
+                                    {
+                                        FileName = "cmd.exe",
+                                        Arguments = $"/k \"cd /d \"{clientPath}\" && dotnet run\"",
+                                        RedirectStandardOutput = false,
+                                        UseShellExecute = true,
+                                        CreateNoWindow = false
+                                    });
+                                    ClearCurrentConsoleLine();
+                                    Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
+                                    Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Failed to determine the client directory path.");
+                                }
+                            }
+
+
+                            else if (message.StartsWith("/"))
+                            {
+                                string numberStr = message.Substring(1);
+                                if (int.TryParse(numberStr, out int number))
+                                {
+                                    // Send the command to the server
+                                    Send($"IS_NUM {number - 1}", false);
+                                    ClearCurrentConsoleLine();
+                                    Console.SetCursorPosition(0, Console.WindowHeight - 1); // Move cursor to the prompt line
+                                    Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+                                }
+                                else
+                                {
+                                    Send(message, false);
+                                    // Update message history
+                                    AddToHistory($"{name} (you): {message}");
+                                }
+                            }
+
+                            else
+                            {
+                                Send(message, false);
+                                // Update message history
+                                AddToHistory($"{name} (you): {message}");
+                            }
                         }
                     }
 
@@ -143,7 +195,7 @@ namespace Client
                             // Clear the entire console
                             Console.Clear();
 
-                            //Space between top and client list
+                            // Space between top and client list
                             Console.WriteLine(); 
 
                             // Print the new client list
@@ -154,7 +206,7 @@ namespace Client
 
                             // Print the prompt
                             ClearCurrentConsoleLine();
-                            Console.Write("Enter message (or 'exit' to quit): ");
+                            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
                         }
                         else
                         {
@@ -164,7 +216,7 @@ namespace Client
                             Console.WriteLine(message);
                             // Print message history
                             Console.SetCursorPosition(0, Console.WindowHeight - 1);
-                            Console.Write("Enter message (or 'exit' to quit): ");
+                            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
                         }
                     }
 
@@ -196,7 +248,7 @@ namespace Client
         {
             Console.Clear();
 
-            Console.WriteLine(); //Space between top and client list
+            Console.WriteLine(); // Space between top and client list
 
             // Print the new client list
             Console.WriteLine(previousClientList);
@@ -204,7 +256,7 @@ namespace Client
             PrintMessageHistory();
             // Print the prompt
             ClearCurrentConsoleLine();
-            Console.Write("Enter message (or 'exit' to quit): ");
+            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
         }
 
         private void AddToHistory(string message)

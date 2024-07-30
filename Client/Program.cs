@@ -16,7 +16,7 @@ namespace Client
             while (true)
             {
                 string? message = Console.ReadLine();
-                if ((message ?? string.Empty).ToLower() == "exit")
+                if ((message ?? string.Empty).ToLower() == "/exit")
                 {
                     break;
                 }
