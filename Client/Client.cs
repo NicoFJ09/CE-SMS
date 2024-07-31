@@ -18,6 +18,8 @@ namespace Client
         Socket? s_Client;
 
         private string previousClientList = string.Empty;
+        
+        private string currentRecipient = string.Empty;
         private Thread? clientThread;
         private volatile bool isRunning = true;
         private string name = string.Empty;
@@ -69,10 +71,7 @@ namespace Client
                             previousWindowHeight = Console.WindowHeight;
                             RedrawScreen();
                         }
-
-                        // Ensure the prompt is in the correct position
                         UpdatePromptLine();
-
                         // Read user input
                         string? message = Console.ReadLine();
 
@@ -114,6 +113,8 @@ namespace Client
                                 {
                                     // Send the command to the server
                                     Send($"IS_NUM {number - 1}", true);
+                                    // Clear the chat and history on recipient change
+                                    ClearChat();
                                 }
                                 else
                                 {
@@ -191,7 +192,6 @@ namespace Client
                         {
                             // Add the message to history and print it
                             AddToHistory(message);
-                            RedrawScreen();
                         }
                     }
                 }
@@ -206,11 +206,17 @@ namespace Client
             }
         }
 
+        private void ClearChat()
+        {
+            // Clear the message history
+            messageHistory.Clear();
+            RedrawScreen();
+        }
+
         private void RedrawScreen()
         {
             Console.Clear();
 
-            
             // Print the client list at the top
             Console.SetCursorPosition(0, 0);
             Console.WriteLine();
@@ -262,9 +268,15 @@ namespace Client
             // Move the cursor to the prompt line and clear it
             Console.SetCursorPosition(0, Console.WindowHeight - 1);
             Console.Write(new string(' ', Console.WindowWidth)); // Clear the line
-            Console.SetCursorPosition(0, Console.WindowHeight - 1); // Reset cursor position
 
+            // Set the cursor back to the beginning of the prompt line
+            Console.SetCursorPosition(0, Console.WindowHeight - 1);
+
+            // Print the prompt text
             Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client, '/#' to select client number): ");
+
+            // Move the cursor to the end of the prompt text
+            Console.SetCursorPosition(Console.CursorLeft, Console.WindowHeight - 1);
         }
     }
 }
