@@ -101,7 +101,6 @@ namespace Client
                                         UseShellExecute = true,
                                         CreateNoWindow = false
                                     });
-                                    UpdatePromptLine();
                                 }
                                 else
                                 {
@@ -151,7 +150,7 @@ namespace Client
             {
                 if (s_Client != null)
                 {
-                    byte[] byteMsg = Encoding.ASCII.GetBytes(msg);
+                    byte[] byteMsg = Encoding.ASCII.GetBytes(msg + "\r\n");
                     s_Client.Send(byteMsg);
                 }
                 else
@@ -211,8 +210,10 @@ namespace Client
         {
             Console.Clear();
 
+            
             // Print the client list at the top
             Console.SetCursorPosition(0, 0);
+            Console.WriteLine();
             Console.WriteLine(previousClientList);
 
             // Print message history
@@ -263,7 +264,7 @@ namespace Client
             Console.Write(new string(' ', Console.WindowWidth)); // Clear the line
             Console.SetCursorPosition(0, Console.WindowHeight - 1); // Reset cursor position
 
-            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client): ");
+            Console.Write("Enter message (or '/exit' to quit, '/new' to open a new client, '/#' to select client number): ");
         }
     }
 }

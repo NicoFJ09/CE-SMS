@@ -73,7 +73,7 @@ namespace Server
                         break;
                     }
 
-                    // Just read and discard messages from clients
+                    // Read the message from the client
                     string message = Encoding.ASCII.GetString(buffer, 0, bytesRead).Trim();
                     Console.WriteLine($"{clientInfo.Name} sent a message: {message}");
 
@@ -85,16 +85,39 @@ namespace Server
                             int clientId = int.Parse(parts[1]);
                             if (clientId >= 0 && clientId < clients.Count)
                             {
-                                // Update the selected recipient for the client
-                                clientInfo.SelectedRecipientId = clientId;
-                                // Send updated client list to all clients
-                                BroadcastClientList();
-                                Console.WriteLine($"Updated selected recipient to client {clientId} ({clients[clientId].Name})");
+                                // Check if the client is trying to write to themselves
+                                if (clients[clientId] == clientInfo)
+                                {
+                                    Console.WriteLine($"Client {clientInfo.Name} tried to write to themselves. Ignoring.");
+                                }
+                                else
+                                {
+                                    // Update the selected recipient for the client
+                                    clientInfo.SelectedRecipientId = clientId;
+                                    // Send updated client list to all clients
+                                    BroadcastClientList();
+                                    Console.WriteLine($"Updated selected recipient to client {clientId} ({clients[clientId].Name})");
+                                }
                             }
                             else
                             {
                                 Console.WriteLine("Invalid client ID");
                             }
+                        }
+                    }
+                    else
+                    {
+                        // Handle message routing to the selected recipient
+                        int recipientId = clientInfo.SelectedRecipientId;
+                        if (recipientId >= 0 && recipientId < clients.Count)
+                        {
+                            string routedMessage = $"{clientInfo.Name}: {message}";
+                            SendMessageToClient(clients[recipientId], routedMessage);
+                            Console.WriteLine($"Message from {clientInfo.Name} routed to {clients[recipientId].Name}");
+                        }
+                        else
+                        {
+                            Console.WriteLine("No valid recipient selected for the message.");
                         }
                     }
                 }
